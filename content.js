@@ -1,8 +1,9 @@
 // 在LeetCode页面上显示问题的难度分
 const DATA_URL = 'https://zerotrac.github.io/leetcode_problem_rating/data.json';
 
-// problems = new Map();
+LANG = 'zh';
 problemsbyslug = new Map();
+problemsbytitle = new Map();
 function fetchRatingData() {
     fetch(DATA_URL)
         .then(response => {
@@ -16,6 +17,11 @@ function fetchRatingData() {
             data.forEach(item => {
                 // problems.set(item.ID, item);
                 problemsbyslug.set(item.TitleSlug, item);
+                if (LANG === 'zh') {
+                    problemsbytitle.set(item.TitleZH, item);
+                } else {
+                    problemsbytitle.set(item.Title, item);
+                }
             });
             // 数据加载完成后，开始监听 DOM 变化
             const config = { attributes: true, childList: true, subtree: true };
@@ -41,6 +47,8 @@ function displayRating() {
         displayRatingOnTable();
     } else if (url.includes('/problem-list/')) {
         displayRatingOnList();
+    } else if (url.includes('/studyplan/')) {
+        displayRatingOnPlan();
     } else {
         displayRatingOnLinks();
     }
@@ -74,7 +82,7 @@ function displayRatingOnTable() {
         } else {
             headerCell.classList.add('mx-2', 'py-[11px]', 'font-normal', 'text-label-3', 'dark:text-dark-label-3');
         }
-        if (document.documentElement.lang === 'zh') {
+        if (LANG === 'zh') {
             headerCell.textContent = '难度分';
         } else {
             headerCell.textContent = 'Rating';    
@@ -129,20 +137,6 @@ function displayRatingOnDesc() {
     if (problemsbyslug.size === 0 || !document.querySelector('.text-title-large a') || document.querySelector('[name="rating"]')) {
         return;
     }
-    /* 使用提取url中的slug，代替提取标题中的ID
-    // 提取文本内容
-    const titleElement = document.querySelector('.text-title-large a');
-    const titleText = titleElement.textContent.trim();
-
-    // 匹配数字
-    const match = titleText.match(/\d+/);
-    if (!match) {
-        console.log('No ID found in the text.');
-        return;
-    }
-    const id = parseInt(match[0], 10);
-    console.log('Extracted problem ID:', id);
-    */
     url = window.location.href;
     slug = extractTitleSlug(url);
     if (!problemsbyslug.has(slug)) {
@@ -216,30 +210,65 @@ function displayRatingOnList() {
         }
         const slug = extractTitleSlug(link.getAttribute('href'));
         // console.log(slug);
-        if (slug && problemsbyslug.get(slug)) {
-            const rating = Math.floor(problemsbyslug.get(slug).Rating);
-            difficultyElement = link.querySelector('.text-sd-hard');
-            if (!difficultyElement) {
-                difficultyElement = link.querySelector('.text-sd-medium');
-            }
-            if (!difficultyElement) {
-                difficultyElement = link.querySelector('.text-sd-easy');
-            }
-            if (!difficultyElement) {
-                return;
-            }
-            const existingTextNode = difficultyElement.nextSibling;
-            if (!existingTextNode || existingTextNode.textContent.trim() != rating) {
-                // 创建一个新的元素来显示分数值
-                const ratingElement = document.createElement('span');
-                ratingElement.textContent = ` ${rating}`;
-                ratingElement.classList.add('text-[14px]', 'ml-2', 'text-sd-accent');
-                difficultyElement.parentNode.insertBefore(ratingElement, difficultyElement.nextSibling);
-                // 美化样式
-                ratingElement.style.display = 'inline-block';
-                ratingElement.style.paddingLeft = '5px';
-                ratingElement.style.borderLeft = '1px solid #ccc';
-            }
+        if (!slug || !problemsbyslug.get(slug)) return;
+        const rating = Math.floor(problemsbyslug.get(slug).Rating);
+        difficultyElement = link.querySelector('.text-sd-hard');
+        if (!difficultyElement) {
+            difficultyElement = link.querySelector('.text-sd-medium');
+        }
+        if (!difficultyElement) {
+            difficultyElement = link.querySelector('.text-sd-easy');
+        }
+        if (!difficultyElement) {
+            return;
+        }
+        const existingTextNode = difficultyElement.nextSibling;
+        if (!existingTextNode || existingTextNode.textContent.trim() != rating) {
+            // 创建一个新的元素来显示分数值
+            const ratingElement = document.createElement('span');
+            ratingElement.textContent = `${rating}`;
+            ratingElement.classList.add('text-[14px]', 'text-sd-accent');
+            difficultyElement.parentNode.insertBefore(ratingElement, difficultyElement.nextSibling);
+            // 美化样式
+            ratingElement.style.display = 'inline-block';
+            ratingElement.style.paddingLeft = '5px';
+            ratingElement.style.margin = '5px';
+            ratingElement.style.borderLeft = '1px solid #ccc';
+        }
+    });
+}
+
+// 在学习计划页面上显示难度分
+function displayRatingOnPlan() {
+    if (problemsbytitle.size === 0) {
+        return;
+    }
+    titles = document.querySelectorAll('.truncate');
+    titles.forEach(title => {
+        if (!title.textContent || !problemsbytitle.get(title.textContent)) return;
+        rating = Math.floor(problemsbytitle.get(title.textContent).Rating);
+        difficultyElement = title.parentNode.parentNode.parentNode.querySelector('.text-lc-green-60');
+        if (!difficultyElement) {
+            difficultyElement = title.parentNode.parentNode.parentNode.querySelector('.text-lc-yellow-60');
+        }
+        if (!difficultyElement) {
+            difficultyElement = title.parentNode.parentNode.parentNode.querySelector('.text-lc-red-60');
+        }
+        if (!difficultyElement) {
+            return;
+        }
+        const existingTextNode = difficultyElement.nextSibling;
+        if (!existingTextNode || existingTextNode.textContent.trim() != rating) {
+            // 创建一个新的元素来显示分数值
+            const ratingElement = document.createElement('span');
+            ratingElement.textContent = `${rating}`;
+            ratingElement.classList.add('text-[14px]', 'text-sd-accent');
+            difficultyElement.parentNode.insertBefore(ratingElement, difficultyElement.nextSibling);
+            // 美化样式
+            ratingElement.style.display = 'inline-block';
+            ratingElement.style.paddingLeft = '5px';
+            ratingElement.style.margin = '5px';
+            ratingElement.style.borderLeft = '1px solid #ccc';
         }
     });
 }
@@ -266,6 +295,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 window.addEventListener('load', function () {
     console.log('Page fully loaded');
+    LANG = document.documentElement.lang;
     // 等待页面加载完成之后调用fetchRatingData
     fetchRatingData();
 });
