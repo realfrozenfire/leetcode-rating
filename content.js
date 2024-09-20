@@ -4,39 +4,80 @@ const DATA_URL = 'https://zerotrac.github.io/leetcode_problem_rating/data.json';
 LANG = 'zh';
 problemsbyslug = new Map();
 problemsbytitle = new Map();
-function fetchRatingData() {
-    fetch(DATA_URL)
-        .then(response => {
-            if (!response.ok) {
-                console.log('Response not ok:', response.status);
-                throw new Error('Network response was not ok');
+problemsStatus = new Map();
+
+async function fetchRatingData() {
+    try {
+        const response = await fetch(DATA_URL);
+        if (!response.ok) {
+            console.log('Response not ok:', response.status);
+            throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        data.forEach(item => {
+            // problems.set(item.ID, item);
+            problemsbyslug.set(item.TitleSlug, item);
+            if (LANG === 'zh') {
+                problemsbytitle.set(item.TitleZH, item);
+            } else {
+                problemsbytitle.set(item.Title, item);
             }
-            return response.json();
-        })
-        .then(data => {
-            data.forEach(item => {
-                // problems.set(item.ID, item);
-                problemsbyslug.set(item.TitleSlug, item);
-                if (LANG === 'zh') {
-                    problemsbytitle.set(item.TitleZH, item);
-                } else {
-                    problemsbytitle.set(item.Title, item);
-                }
-            });
-            // 数据加载完成后，开始监听 DOM 变化
-            const config = { attributes: true, childList: true, subtree: true };
-            const targetNode = document.body || document.documentElement;
-            const observer = new MutationObserver(function (mutationsList, observer) {
-                // console.log('DOM changed');
-                observer.disconnect(); // 停止监听，避免重复监听
-                displayRating();
-                observer.observe(targetNode, config); // 重新开始监听
-            });
-            observer.observe(targetNode, config);
-        })
-        .catch(error => {
-            console.error('Error fetching rating data:', error);
         });
+        return data;
+    } catch (error) {
+        console.error('Error fetching rating data:', error);
+    }
+}
+
+async function fetchProblems(skip, pageSize, status) {
+    try {
+        const response = await fetch(`https://${window.location.host}/graphql/`, {
+            "headers": {
+                "cache-control": "no-cache",
+                "content-type": "application/json",
+                "pragma": "no-cache"
+            },
+            "referrer": `https://${window.location.host}/problemset/`,
+            "referrerPolicy": "strict-origin-when-cross-origin",
+            "body": `{\"query\":\"\\n    query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {\\n  problemsetQuestionList(\\n    categorySlug: $categorySlug\\n    limit: $limit\\n    skip: $skip\\n    filters: $filters\\n  ) {\\n    hasMore\\n    total\\n    questions {\\n      status\\n      titleSlug\\n      }\\n  }\\n}\\n    \",\"variables\":{\"categorySlug\":\"all-code-essentials\",\"skip\":${skip},\"limit\":${pageSize},\"filters\":{\"status\":\"${status}\"}},\"operationName\":\"problemsetQuestionList\"}`,
+            "method": "POST",
+            "mode": "cors",
+            "credentials": "include"
+        });
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        // console.log(data.data.problemsetQuestionList.questions.length);
+        return data.data.problemsetQuestionList.questions;
+    } catch (error) {
+        console.error('Error fetching problems:', error);
+    }
+}
+
+async function fetchAllACProblems() {
+    let allData = [];
+    let currentPage = 0;
+    let pageSize = 100;
+    while (true) {
+        try {
+            const data = await fetchProblems(currentPage * pageSize, pageSize, 'AC');
+            allData = allData.concat(data);
+            if (data.length < pageSize) {
+                break; // 没有数据了，退出循环
+            }
+            currentPage++;
+        } catch (error) {
+            console.error(`Error fetching problems for page ${currentPage}:`, error);
+            break; // 出现错误，退出循环
+        }
+    }
+    console.log('Total AC problems: ', allData.length);
+    allData.forEach(item => {
+        problemsStatus.set(item.titleSlug, item.status);
+        // console.log(item.titleSlug, item.status);
+    });
+    return allData;
 }
 
 function displayRating() {
@@ -174,25 +215,36 @@ function displayRatingOnLinks() {
         if (excludeElement && excludeElement.contains(link)) {
             return;
         }
+        prevElement = link;
         const slug = extractTitleSlug(link.getAttribute('href'));
-        // console.log(slug);
-        if (slug && problemsbyslug.get(slug)) {
-            // 创建一个新的文本节点，并添加到当前超链接之后
-            const rating = Math.floor(problemsbyslug.get(slug).Rating);
-            const existingTextNode = link.nextSibling;
-            if (!existingTextNode || existingTextNode.textContent.trim() != rating) {
-                // const textNode = document.createTextNode(` ${rating}`);
-                // link.parentNode.insertBefore(textNode, link.nextSibling);
-                const ratingElement = document.createElement('span');
-                ratingElement.textContent = `${rating}`;
-                link.parentNode.insertBefore(ratingElement, link.nextSibling);
-                // 美化样式
-                // ratingElement.style.fontSize = '14px';
-                ratingElement.style.padding = '2px 5px';
-                ratingElement.style.marginLeft = '5px';
-                ratingElement.style.backgroundColor = '#f0f0f0';
-                ratingElement.style.borderRadius = '5px';
+        if (slug && problemsStatus.get(slug) === 'AC') {
+            if (!prevElement.nextSibling || typeof prevElement.nextSibling.getAttribute !== 'function' || prevElement.nextSibling.getAttribute('id') !== 'status') {
+                const checkmark = document.createElement('span');
+                checkmark.setAttribute('id', 'status');
+                checkmark.style.paddingLeft = '1px';
+                checkmark.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" style="transform: translateY(20%);" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" class="h-[18px] w-[18px] cursor-pointer text-green-s dark:text-dark-green-s"><path fill-rule="evenodd" d="M20 12.005v-.828a1 1 0 112 0v.829a10 10 0 11-5.93-9.14 1 1 0 01-.814 1.826A8 8 0 1020 12.005zM8.593 10.852a1 1 0 011.414 0L12 12.844l8.293-8.3a1 1 0 011.415 1.413l-9 9.009a1 1 0 01-1.415 0l-2.7-2.7a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>`;
+                prevElement.parentNode.insertBefore(checkmark, prevElement.nextSibling);
+                prevElement = checkmark;
+            } else {
+                prevElement = prevElement.nextSibling;
             }
+        }
+        if (!slug || !problemsbyslug.has(slug)) {
+            return;
+        }
+        // 创建一个新的文本节点，并添加到当前超链接之后
+        const rating = Math.floor(problemsbyslug.get(slug).Rating);
+        const existingTextNode = prevElement.nextSibling;
+        if (!existingTextNode || existingTextNode.textContent.trim() != rating) {
+            const ratingElement = document.createElement('span');
+            ratingElement.textContent = `${rating}`;
+            prevElement.parentNode.insertBefore(ratingElement, prevElement.nextSibling);
+            // 美化样式
+            // ratingElement.style.fontSize = '14px';
+            ratingElement.style.padding = '2px 5px';
+            ratingElement.style.marginLeft = '5px';
+            ratingElement.style.backgroundColor = '#f0f0f0';
+            ratingElement.style.borderRadius = '5px';
         }
     });
 }
@@ -296,6 +348,24 @@ document.addEventListener('DOMContentLoaded', function () {
 window.addEventListener('load', function () {
     console.log('Page fully loaded');
     LANG = document.documentElement.lang;
-    // 等待页面加载完成之后调用fetchRatingData
-    fetchRatingData();
+    // 等待页面加载完成之后开始获取数据
+    if (window.location.href.includes('/discuss/')) {
+        fetchAllACProblems()
+            .then(data => {
+                displayRating();
+            });
+    }
+    fetchRatingData()
+        .then(data => {
+            // 数据加载完成后，开始监听 DOM 变化
+            const config = { attributes: true, childList: true, subtree: true };
+            const targetNode = document.body || document.documentElement;
+            const observer = new MutationObserver(function (mutationsList, observer) {
+                // console.log('DOM changed');
+                observer.disconnect(); // 停止监听，避免重复监听
+                displayRating();
+                observer.observe(targetNode, config); // 重新开始监听
+            });
+            observer.observe(targetNode, config);
+        });
 });
