@@ -80,6 +80,26 @@ async function fetchAllACProblems() {
     return allData;
 }
 
+function loadProblemsSatus() {
+    chrome.storage.local.get(['ex-rating-problems-status', 'ex-rating-problems-status-ts'], function(items) {
+        if (items['ex-rating-problems-status']) {
+            allData = items['ex-rating-problems-status'];
+            console.log('Total problems status from local: ', allData.length);
+            allData.forEach(item => {
+                problemsStatus.set(item.titleSlug, item.status);
+            });
+        }
+        if (items['ex-rating-problems-status-ts'] < Date.now() - 600000) {
+            fetchAllACProblems().then(data => {
+                chrome.storage.local.set({'ex-rating-problems-status': data, 'ex-rating-problems-status-ts': Date.now()}, function() {
+                    console.log('Problems status saved.');
+                });
+                displayRating();
+            });
+        }
+    });
+}
+
 function displayRating() {
     url = window.location.href;
     if (url.includes('/problems/')) {
@@ -90,6 +110,8 @@ function displayRating() {
         displayRatingOnList();
     } else if (url.includes('/studyplan/')) {
         displayRatingOnPlan();
+    } else if (url.includes('/progress/')) {
+        displayRatingOnProgress();
     } else {
         displayRatingOnLinks();
     }
@@ -325,6 +347,34 @@ function displayRatingOnPlan() {
     });
 }
 
+//在做题分析（进度，所有提交）页面上显示难度分
+function displayRatingOnProgress() {
+    if (problemsbyslug.size === 0) {
+        return;
+    }
+    rows = document.querySelectorAll('tbody tr[data-row-key]');
+    rows.forEach(row => {
+        const slug = extractTitleSlug(row.querySelector('a').getAttribute('href'));
+        if (!slug || !problemsbyslug.get(slug)) return;
+        const rating = Math.floor(problemsbyslug.get(slug).Rating);
+        const difficultyCell = row.querySelector('.ant-table-cell.progress-level');
+        const difficultyElement = difficultyCell.querySelector('span');
+        const existingTextNode = difficultyElement.nextSibling;
+        if (!existingTextNode || existingTextNode.textContent.trim() != rating) {
+            // 创建一个新的元素来显示分数值
+            const ratingElement = document.createElement('span');
+            ratingElement.textContent = `${rating}`;
+            ratingElement.classList.add('text-[14px]', 'text-sd-accent');
+            difficultyElement.parentNode.insertBefore(ratingElement, difficultyElement.nextSibling);
+            // 美化样式
+            ratingElement.style.display = 'inline-block';
+            ratingElement.style.paddingLeft = '5px';
+            ratingElement.style.margin = '5px';
+            ratingElement.style.borderLeft = '1px solid #ccc';
+        }
+    })
+}
+
 function extractTitleSlug(url) {
     if (!url) {
         return null;
@@ -350,10 +400,7 @@ window.addEventListener('load', function () {
     LANG = document.documentElement.lang;
     // 等待页面加载完成之后开始获取数据
     if (window.location.href.includes('/discuss/')) {
-        fetchAllACProblems()
-            .then(data => {
-                displayRating();
-            });
+        loadProblemsSatus();
     }
     fetchRatingData()
         .then(data => {
