@@ -103,7 +103,7 @@ function loadProblemsSatus() {
 function displayRating() {
     url = window.location.href;
     if (url.includes('/problems/')) {
-        displayRatingOnDesc();
+        if (url.includes('/description/')) displayRatingOnDesc();
     } else if (url.includes('/problemset/') || url.includes('/search/')) {
         displayRatingOnTable();
     } else if (url.includes('/problem-list/')) {
@@ -203,7 +203,7 @@ function displayRatingOnDesc() {
     url = window.location.href;
     slug = extractTitleSlug(url);
     if (!problemsbyslug.has(slug)) {
-        console.log('No rating data found for the problem.');
+        // console.log('No rating data found for the problem.');
         return;
     }
     targetDiv = document.querySelector('.text-difficulty-easy');
@@ -232,7 +232,7 @@ function displayRatingOnLinks() {
     }
     const links = document.querySelectorAll('a');
     // 排除导航栏
-    const excludeElement = document.querySelector('[id="leetcode-navbar"]');
+    const excludeElement = document.querySelector('nav');
     links.forEach(link => {
         if (excludeElement && excludeElement.contains(link)) {
             return;
