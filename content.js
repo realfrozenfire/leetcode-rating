@@ -2,6 +2,11 @@
 const DATA_URL = 'https://zerotrac.github.io/leetcode_problem_rating/data.json';
 
 LANG = 'zh';
+const RATING_DATA_KEY = 'lc-rating-data';
+const RATING_DATA_TS_KEY = 'lc-rating-data-ts';
+const PROBLEM_STATUS_KEY = 'lc-problems-status';
+const PROBLEM_STATUS_TS_KEY = 'lc-problems-status-ts';
+
 problemsbyslug = new Map();
 problemsbytitle = new Map();
 problemsStatus = new Map();
@@ -27,6 +32,35 @@ async function fetchRatingData() {
     } catch (error) {
         console.error('Error fetching rating data:', error);
     }
+}
+
+function loadRatingData(callback) {
+    chrome.storage.local.get([RATING_DATA_KEY, RATING_DATA_TS_KEY], function(items) {
+        if (items[RATING_DATA_KEY]) {
+            data = items[RATING_DATA_KEY];
+            console.log('Load rating data from local: ', data.length);
+            data.forEach(item => {
+                problemsbyslug.set(item.TitleSlug, item);
+                if (LANG === 'zh') {
+                    problemsbytitle.set(item.TitleZH, item);
+                } else {
+                    problemsbytitle.set(item.Title, item);
+                }
+            });
+        }
+        // 间隔12小时以上，重新fetch一次
+        if (!items[RATING_DATA_TS_KEY] || items[RATING_DATA_TS_KEY] < Date.now() - 43200000) {
+            console.log('Fetch rating data from remote.');
+            fetchRatingData().then(data => {
+                chrome.storage.local.set({[RATING_DATA_KEY]: data, [RATING_DATA_TS_KEY]: Date.now()}, function() {
+                    console.log('Rating data saved.');
+                });
+                callback();
+            });
+        } else {
+            callback();
+        }
+    });
 }
 
 async function fetchProblems(skip, pageSize, status) {
@@ -80,22 +114,24 @@ async function fetchAllACProblems() {
     return allData;
 }
 
-function loadProblemsSatus() {
-    chrome.storage.local.get(['ex-rating-problems-status', 'ex-rating-problems-status-ts'], function(items) {
-        if (items['ex-rating-problems-status']) {
-            allData = items['ex-rating-problems-status'];
+function loadProblemsSatus(callback) {
+    chrome.storage.local.get([PROBLEM_STATUS_KEY, PROBLEM_STATUS_TS_KEY], function(items) {
+        if (items[PROBLEM_STATUS_KEY]) {
+            allData = items[PROBLEM_STATUS_KEY];
             console.log('Total problems status from local: ', allData.length);
             allData.forEach(item => {
                 problemsStatus.set(item.titleSlug, item.status);
             });
         }
-        if (items['ex-rating-problems-status-ts'] < Date.now() - 600000) {
+        if (!items[PROBLEM_STATUS_TS_KEY] || items[PROBLEM_STATUS_TS_KEY] < Date.now() - 1800000) {
             fetchAllACProblems().then(data => {
-                chrome.storage.local.set({'ex-rating-problems-status': data, 'ex-rating-problems-status-ts': Date.now()}, function() {
+                chrome.storage.local.set({[PROBLEM_STATUS_KEY]: data, [PROBLEM_STATUS_TS_KEY]: Date.now()}, function() {
                     console.log('Problems status saved.');
                 });
-                displayRating();
+                callback();
             });
+        } else {
+            callback();
         }
     });
 }
@@ -400,19 +436,20 @@ window.addEventListener('load', function () {
     LANG = document.documentElement.lang;
     // 等待页面加载完成之后开始获取数据
     if (window.location.href.includes('/discuss/')) {
-        loadProblemsSatus();
-    }
-    fetchRatingData()
-        .then(data => {
-            // 数据加载完成后，开始监听 DOM 变化
-            const config = { attributes: true, childList: true, subtree: true };
-            const targetNode = document.body || document.documentElement;
-            const observer = new MutationObserver(function (mutationsList, observer) {
-                // console.log('DOM changed');
-                observer.disconnect(); // 停止监听，避免重复监听
-                displayRating();
-                observer.observe(targetNode, config); // 重新开始监听
-            });
-            observer.observe(targetNode, config);
+        loadProblemsSatus(function() {
+            displayRating();
         });
+    }
+    loadRatingData(function () {
+        // 数据加载完成后，开始监听 DOM 变化
+        const config = { childList: true, subtree: true };
+        const targetNode = document.body || document.documentElement;
+        const observer = new MutationObserver(function (mutationsList, observer) {
+            // console.log('DOM changed');
+            observer.disconnect(); // 停止监听，避免重复监听
+            displayRating();
+            observer.observe(targetNode, config); // 重新开始监听
+        });
+        observer.observe(targetNode, config);
+    });
 });
