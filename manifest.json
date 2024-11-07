@@ -13,7 +13,8 @@
       {
         "matches": [
             "https://leetcode.cn/*",
-            "https://leetcode.com/*"
+            "https://leetcode.com/*",
+            "https://zerotrac.github.io/leetcode_problem_rating/*"
         ],
         "js": ["content.js"]
       }
