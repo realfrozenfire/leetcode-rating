@@ -13,7 +13,7 @@
 5. 学习计划页面的题目列表
 6. 做题分析页面
 7. 其他页面，主要是讨论帖子里如果嵌入了题目链接，会在链接后显示难度分，同时会显示题目的完成状态，在刷各位大神的题单时能更直观的看到自己的进度
-8. 反向在难度分页面上（https://zerotrac.github.io/leetcode_problem_rating/）显示题目完成状态，能帮助用户更好的按照难度分刷题。因为LeetCode的API禁止跨域访问，在难度分页面上无法直接调用LeetCode API来获取题目完成状态，所以为了使用该功能，用户需要先访问LeetCode页面，插件会将获取到的题目状态数据缓存到浏览器的localStorage，这样在难度分页面上就能从本地获取到数据。
+8. 反向在难度分页面上（https://zerotrac.github.io/leetcode_problem_rating/ ）显示题目完成状态，能帮助用户更好的按照难度分刷题。因为LeetCode的API禁止跨域访问，在难度分页面上无法直接调用LeetCode API来获取题目完成状态，所以为了使用该功能，用户需要先访问LeetCode页面，插件会将获取到的题目状态数据缓存到浏览器的localStorage，这样在难度分页面上就能从本地获取到数据。
 
 难度分数据来自：https://zerotrac.github.io/leetcode_problem_rating/
 
