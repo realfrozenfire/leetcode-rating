@@ -398,20 +398,29 @@ function displayRatingOnProgress() {
     if (problemsbyslug.size === 0) {
         return;
     }
-    rows = document.querySelectorAll('tbody tr[data-row-key]');
+    rows = document.querySelectorAll('div[role="row"]');
     rows.forEach(row => {
+        if (!row.querySelector('a')) return;
         const slug = extractTitleSlug(row.querySelector('a').getAttribute('href'));
         if (!slug || !problemsbyslug.get(slug)) return;
         const rating = Math.floor(problemsbyslug.get(slug).Rating);
-        const difficultyCell = row.querySelector('.ant-table-cell.progress-level');
-        const difficultyElement = difficultyCell.querySelector('span');
-        const existingTextNode = difficultyElement.nextSibling;
-        if (!existingTextNode || existingTextNode.textContent.trim() != rating) {
+        difficultyElement = row.querySelector('div.text-sd-easy');
+        if (!difficultyElement) {
+            difficultyElement = row.querySelector('div.text-sd-medium');
+        }
+        if (!difficultyElement) {
+            difficultyElement = row.querySelector('div.text-sd-hard');
+        }
+        if (!difficultyElement) {
+            return;
+        }
+        const existingTextNode = difficultyElement.querySelector('span.text-sd-accent');
+        if (!existingTextNode) {
             // 创建一个新的元素来显示分数值
             const ratingElement = document.createElement('span');
             ratingElement.textContent = `${rating}`;
             ratingElement.classList.add('text-[14px]', 'text-sd-accent');
-            difficultyElement.parentNode.insertBefore(ratingElement, difficultyElement.nextSibling);
+            difficultyElement.insertBefore(ratingElement, difficultyElement.textContent.nextSibling);
             // 美化样式
             ratingElement.style.display = 'inline-block';
             ratingElement.style.paddingLeft = '5px';
