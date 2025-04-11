@@ -6,6 +6,7 @@ const RATING_DATA_KEY = 'lc-rating-data';
 const RATING_DATA_TS_KEY = 'lc-rating-data-ts';
 const PROBLEM_STATUS_KEY = 'lc-problems-status';
 const PROBLEM_STATUS_TS_KEY = 'lc-problems-status-ts';
+const LC_SESSION_KEY = 'lc-session';
 
 problemsbyslug = new Map();
 problemsbytitle = new Map();
@@ -116,7 +117,11 @@ async function fetchAllACProblems() {
 }
 
 function loadProblemStatus(callback) {
-    chrome.storage.local.get([PROBLEM_STATUS_KEY, PROBLEM_STATUS_TS_KEY], function(items) {
+    chrome.storage.local.get([
+        PROBLEM_STATUS_KEY,
+        PROBLEM_STATUS_TS_KEY,
+        LC_SESSION_KEY
+    ], function(items) {
         if (items[PROBLEM_STATUS_KEY]) {
             allData = items[PROBLEM_STATUS_KEY];
             console.log('Total problems status from local: ', allData.length);
@@ -124,15 +129,28 @@ function loadProblemStatus(callback) {
                 problemsStatus.set(item.titleSlug, item.status);
             });
         }
+        // 只能在 leetcode 域下才从远程获取，其他域从本地获取
         if (!window.location.host.includes('leetcode')) {
             console.log('Not leetcode domain. Problem status can only be loaded from local storage.');
             callback();
             return;
         }
-        if (!items[PROBLEM_STATUS_KEY] || items[PROBLEM_STATUS_KEY].size === 0 || items[PROBLEM_STATUS_TS_KEY] < Date.now() - 1800000) {
+        // 满足以下条件之一才会从远程刷新数据：
+        // 1. 本地没有数据
+        // 2. Leetcode session变化
+        // 3. 本地数据过期，超过30分钟
+        let session = document.cookie.split('; ').find(row => row.startsWith('LEETCODE_SESSION=')) || '';
+        if (!items[PROBLEM_STATUS_KEY] ||
+            items[PROBLEM_STATUS_KEY].size === 0 ||
+            items[LC_SESSION_KEY] !== session ||
+            items[PROBLEM_STATUS_TS_KEY] < Date.now() - 1800000) {
             fetchAllACProblems().then(data => {
                 if (data) {
-                    chrome.storage.local.set({[PROBLEM_STATUS_KEY]: data, [PROBLEM_STATUS_TS_KEY]: Date.now()}, function() {
+                    chrome.storage.local.set({
+                        [PROBLEM_STATUS_KEY]: data,
+                        [PROBLEM_STATUS_TS_KEY]: Date.now(),
+                        [LC_SESSION_KEY] : session
+                    }, function() {
                         console.log('Problems status saved.');
                     });
                 }
@@ -158,7 +176,7 @@ function display() {
         displayRatingOnProgress();
     } else if (url.includes('/leetcode_problem_rating/')) {
         displayStatusOnRating();
-    } else {
+    } else if (window.location.pathname !== '/') { // 不对首页做改动
         displayRatingOnLinks();
     }
 }
