@@ -179,6 +179,9 @@ function display() {
     } else if (window.location.pathname !== '/') { // 不对首页做改动
         displayRatingOnLinks();
     }
+    if (isUserProfilePage()) {
+        addStatsButtonToUserStatsCard();
+    }
 }
 
 // 在“题库”和“搜索”页面的问题列表中显示难度分
@@ -506,6 +509,207 @@ function extractTitleSlug(url) {
     } else {
         return null;
     }
+}
+
+// 检查是否在用户页面
+function isUserProfilePage() {
+    return window.location.href.includes('/u/');
+}
+
+// 在用户统计卡片上添加按钮
+function addStatsButtonToUserStatsCard() {
+    // 查找统计卡片
+    // 因为leetcode页面元素没有id，所以只能用class来查找，注意以后可能会变化
+    const statsCard = document.querySelector('.bg-layer-1.dark\\:bg-dark-layer-1.shadow-down-01.dark\\:shadow-dark-down-01.rounded-lg.min-w-max.max-w-full.w-full.flex-1');
+    if (!statsCard) {
+        setTimeout(addStatsButtonToUserStatsCard, 1000);
+        return;
+    }
+
+    // 避免重复添加按钮
+    if (document.getElementById('leetcode-rating-stats-btn')) {
+        return;
+    }
+
+    // 创建按钮容器
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.position = 'absolute';
+    buttonContainer.style.top = '10px';
+    buttonContainer.style.left = '10px';
+    buttonContainer.style.zIndex = '10';
+
+    // 创建按钮
+    const statsButton = document.createElement('button');
+    statsButton.id = 'leetcode-rating-stats-btn';
+    statsButton.className = 'rounded-full p-1 bg-layer-2 dark:bg-dark-layer-2 hover:bg-fill-3 dark:hover:bg-dark-fill-3 transition-colors';
+    statsButton.style.width = '32px';
+    statsButton.style.height = '32px';
+    statsButton.style.display = 'flex';
+    statsButton.style.alignItems = 'center';
+    statsButton.style.justifyContent = 'center';
+    statsButton.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)';
+    
+    // 添加图标
+    const icon = document.createElement('img');
+    icon.src = 'https://zerotrac.github.io/leetcode_problem_rating/favicon.ico';
+    icon.style.width = '20px';
+    icon.style.height = '20px';
+    
+    // 添加点击事件
+    statsButton.addEventListener('click', function(event) {
+        event.stopPropagation(); // 阻止事件冒泡
+        showRatingStats(this);
+    });
+    
+    // 组装按钮
+    statsButton.appendChild(icon);
+    buttonContainer.appendChild(statsButton);
+    
+    // 添加到统计卡片
+    statsCard.style.position = 'relative';
+    statsCard.appendChild(buttonContainer);
+}
+
+// 显示分数段统计信息
+function showRatingStats(buttonElement) {
+    // 移除已存在的统计信息面板
+    const existingPanel = document.getElementById('leetcode-rating-stats-container');
+    if (existingPanel) {
+        existingPanel.remove();
+    } else {
+        // 创建统计信息面板
+        const statsContainer = document.createElement('div');
+        statsContainer.id = 'leetcode-rating-stats-container';
+        statsContainer.style.position = 'absolute';
+        statsContainer.style.zIndex = '1000';
+        statsContainer.style.backgroundColor = '#fff';
+        statsContainer.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
+        statsContainer.style.borderRadius = '8px';
+        statsContainer.style.padding = '15px';
+        statsContainer.style.width = '350px';
+        statsContainer.style.maxHeight = '80vh';
+        statsContainer.style.overflowY = 'auto';
+        statsContainer.style.border = '1px solid #eee';
+        
+        // 设置面板位置 - 在按钮右侧显示
+        const buttonRect = buttonElement.getBoundingClientRect();
+        statsContainer.style.top = `${buttonRect.top}px`;
+        statsContainer.style.left = `${buttonRect.right + 10}px`;
+        
+        // 添加暗色模式支持
+        statsContainer.classList.add('dark:bg-dark-layer-1', 'dark:border-dark-border');
+        
+        // 显示统计数据
+        displayRatingStats(statsContainer);
+        
+        // 添加到页面
+        document.body.appendChild(statsContainer);
+        
+        // 点击页面其他部分时关闭面板
+        document.addEventListener('click', function closePanel(e) {
+            if (!statsContainer.contains(e.target) && e.target !== buttonElement) {
+                statsContainer.remove();
+                document.removeEventListener('click', closePanel);
+            }
+        });
+    }
+}
+
+// 显示统计结果
+function displayRatingStats(container) {
+    // 模拟数据 - 实际使用时应该从 problemsbyslug 和 problemsStatus 中获取
+    const statsData = calculateRatingStats();
+    
+    let html = '<h3 style="margin-top: 0; margin-bottom: 15px; font-size: 16px; font-weight: 600;">题目分数段完成比例</h3>';
+    html += '<div>';
+    
+    // 创建表格
+    html += `
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">分数段</th>
+                    <th style="padding: 8px; text-align: center; border-bottom: 2px solid #ddd;">已解决</th>
+                    <th style="padding: 8px; text-align: center; border-bottom: 2px solid #ddd;">总题数</th>
+                    <th style="padding: 8px; text-align: center; border-bottom: 2px solid #ddd;">完成比例</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    statsData.forEach(stat => {
+        html += `
+            <tr>
+                <td style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">${stat.label}</td>
+                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #ddd;">${stat.solved}</td>
+                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #ddd;">${stat.total}</td>
+                <td style="padding: 8px; text-align: center; border-bottom: 1px solid #ddd;">
+                    <div style="display: flex; align-items: center;">
+                        <span style="margin-right: 8px;">${stat.percentage.toFixed(2)}%</span>
+                        <div style="flex-grow: 1; background-color: #eee; height: 8px; border-radius: 4px; overflow: hidden;">
+                            <div style="background-color: #5cb85c; height: 100%; width: ${stat.percentage}%"></div>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// 计算不同分数段的完成比例
+function calculateRatingStats() {
+    // 定义分数段
+    const ratingBrackets = [
+        { min: 1000, max: 1400, label: '1000-1400' },
+        { min: 1400, max: 1800, label: '1400-1800' },
+        { min: 1800, max: 2000, label: '1800-2000' },
+        { min: 2000, max: 2300, label: '2000-2300' },
+        { min: 2300, max: 2500, label: '2300-2500' },
+        { min: 2500, max: 2700, label: '2500-2700' },
+        { min: 2700, max: 3000, label: '2700-3000' },
+        { min: 3000, max: 10000, label: '3000+' }
+    ];
+    
+    // 初始化统计数据
+    const stats = ratingBrackets.map(bracket => ({
+        ...bracket,
+        total: 0,
+        solved: 0,
+        percentage: 0
+    }));
+    
+    // 统计每个分数段的题目总数和已解决数
+    problemsbyslug.forEach((problem, slug) => {
+        if (!problem.Rating) return;
+        
+        const rating = problem.Rating;
+        const isSolved = problemsStatus.get(slug) === 'AC';
+        
+        for (const stat of stats) {
+            if (rating >= stat.min && rating < stat.max) {
+                stat.total++;
+                if (isSolved) {
+                    stat.solved++;
+                }
+                break;
+            }
+        }
+    });
+    
+    // 计算百分比
+    stats.forEach(stat => {
+        stat.percentage = stat.total > 0 ? (stat.solved / stat.total * 100) : 0;
+    });
+    
+    return stats;
 }
 
 document.addEventListener('DOMContentLoaded', function () {
