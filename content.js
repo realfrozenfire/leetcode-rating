@@ -166,9 +166,9 @@ function display() {
     url = window.location.href;
     if (url.includes('/problems/')) {
         if (url.includes('/description/')) displayRatingOnDesc();
-    } else if (url.includes('/problemset/') || url.includes('/search/')) {
+    } else if (url.includes('/search/')) {
         displayRatingOnTable();
-    } else if (url.includes('/problem-list/')) {
+    } else if (url.includes('/problemset/') || url.includes('/problem-list/')) {
         displayRatingOnList();
     } else if (url.includes('/studyplan/')) {
         displayRatingOnPlan();
@@ -184,7 +184,7 @@ function display() {
     }
 }
 
-// 在“题库”和“搜索”页面的问题列表中显示难度分
+// 在“搜索”页面的问题列表中显示难度分
 function displayRatingOnTable() {
     if (problemsbyslug.size === 0 || !document.querySelector('[role="table"]')) {
         return;
@@ -338,7 +338,7 @@ function displayRatingOnLinks() {
     });
 }
 
-// 在题单页面的列表上显示难度分
+// 在题库和题单页面的列表上显示难度分
 function displayRatingOnList() {
     if (problemsbyslug.size === 0) {
         return;
@@ -373,7 +373,7 @@ function displayRatingOnList() {
             // 美化样式
             ratingElement.style.display = 'inline-block';
             ratingElement.style.paddingLeft = '5px';
-            ratingElement.style.margin = '5px';
+            // ratingElement.style.margin = '5px';
             ratingElement.style.borderLeft = '1px solid #ccc';
         }
     });
